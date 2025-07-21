@@ -84,7 +84,7 @@ export const characters: Character[] = [
   },
   {
     id: "harshit",
-    name: "Harshit",
+    name: "Satyam",
     color: "#F7DC6F",
     avatar: "🧑‍🔬",
     ability: "small-hitbox",
