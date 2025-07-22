@@ -149,7 +149,7 @@ export default function OptimizedGameScreen({
   const birdVelocityRef = useRef(0)
   const birdRotationVelocity = useRef(0)
 
-  const hitboxSize = character.ability === "small-hitbox" ? 20 : 30
+  const hitboxSize = 30 // Standard hitbox size (small-hitbox ability was removed)
 
   // Memoized calculations
   const currentPipeSpeed = useMemo(() => {
@@ -267,6 +267,13 @@ export default function OptimizedGameScreen({
   useEffect(() => {
     resetGame()
   }, [resetGame])
+
+  // Update powerup states when selectedPowerups changes
+  useEffect(() => {
+    setPowerupShieldActive(selectedPowerups.includes("shield"))
+    setPowerupDoubleCoins(selectedPowerups.includes("double-coin"))
+    setPowerupMagnetActive(selectedPowerups.includes("magnet"))
+  }, [selectedPowerups])
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -677,7 +684,6 @@ export default function OptimizedGameScreen({
     jetpackActive,
     powerupShieldActive,
     cloneRevivalUsed,
-    activateCloneRevival,
     character.ability,
     playSound,
   ])

@@ -82,7 +82,7 @@ export default function EnhancedGameScreen({
   const physicsEngine = useRef<GamePhysicsEngine>(new GamePhysicsEngine(difficulty))
   const audioContextRef = useRef<AudioContext | null>(null)
 
-  const hitboxSize = character.ability === "small-hitbox" ? 20 : 30
+  const hitboxSize = 30 // Standard hitbox size (small-hitbox ability was removed)
 
   // Sound effects
   const playSound = useCallback((frequency: number, duration: number) => {

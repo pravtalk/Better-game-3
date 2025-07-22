@@ -69,7 +69,7 @@ export default function GameScreen({
 
   const gravity = character.ability === "slow-gravity" ? 0.3 : 0.5
   const jumpStrength = character.ability === "fast-flap" ? -8 : -6
-  const hitboxSize = character.ability === "small-hitbox" ? 20 : 30
+  const hitboxSize = 30 // Standard hitbox size (small-hitbox ability was removed)
 
   // Simple sound effects
   const playSound = useCallback((frequency: number, duration: number) => {
