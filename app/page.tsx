@@ -19,6 +19,7 @@ export type CharacterAbility =
   | "fast-flap"
   | "bonus-points"
   | "gla-shield-time-flight"
+  | "jetpack-god-flight"
 
 export type Character = {
   id: string
@@ -118,6 +119,15 @@ export const characters: Character[] = [
     ability: "bonus-points",
     unlockCost: 10,
     description: "Bonus points every 5 pipes passed!",
+  },
+  {
+    id: "kapil-sir",
+    name: "Kapil Sir",
+    color: "#1E40AF",
+    avatar: "👨‍🏫",
+    ability: "jetpack-god-flight",
+    unlockCost: 100,
+    description: "Jetpack God-Mode - fly through everything for 5 seconds!",
   },
 ]
 
