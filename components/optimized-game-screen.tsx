@@ -676,6 +676,8 @@ export default function OptimizedGameScreen({
     hasShield,
     jetpackActive,
     powerupShieldActive,
+    cloneRevivalUsed,
+    activateCloneRevival,
     character.ability,
     playSound,
   ])
