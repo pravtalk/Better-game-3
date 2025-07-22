@@ -96,6 +96,14 @@ export default function OptimizedGameScreen({
   const [lives, setLives] = useState(character.ability === "extra-lives" ? 3 : 1)
   const [isInvisible, setIsInvisible] = useState(false)
   const [invisibilityCooldown, setInvisibilityCooldown] = useState(0)
+  
+  // GLA abilities state for Hitesh
+  const [hasShield, setHasShield] = useState(character.ability === "gla-shield-time-flight")
+  const [slowTimeActive, setSlowTimeActive] = useState(false)
+  const [slowTimeCooldown, setSlowTimeCooldown] = useState(0)
+  const [finalFlightActive, setFinalFlightActive] = useState(false)
+  const [finalFlightUsed, setFinalFlightUsed] = useState(false)
+  const [hasRevived, setHasRevived] = useState(false)
 
   // Performance monitoring
   const [fps, setFPS] = useState(60)
@@ -127,8 +135,10 @@ export default function OptimizedGameScreen({
 
   // Memoized calculations
   const currentPipeSpeed = useMemo(() => {
-    return physicsEngine.current.getPipeSpeed(currentScore)
-  }, [currentScore])
+    const baseSpeed = physicsEngine.current.getPipeSpeed(currentScore)
+    // Apply slow time effect for GLA character
+    return character.ability === "gla-shield-time-flight" && slowTimeActive ? baseSpeed * 0.3 : baseSpeed
+  }, [currentScore, character.ability, slowTimeActive])
 
   // Optimized sound system
   const playSound = useCallback((frequency: number, duration: number) => {
@@ -191,6 +201,14 @@ export default function OptimizedGameScreen({
     setLives(character.ability === "extra-lives" ? 3 : 1)
     setIsInvisible(false)
     setInvisibilityCooldown(0)
+    
+    // Reset GLA abilities
+    setHasShield(character.ability === "gla-shield-time-flight")
+    setSlowTimeActive(false)
+    setSlowTimeCooldown(0)
+    setFinalFlightActive(false)
+    setFinalFlightUsed(false)
+    setHasRevived(false)
 
     // Reset refs
     birdVelocityRef.current = 0
@@ -250,12 +268,13 @@ export default function OptimizedGameScreen({
       const { deltaTime, shouldRender, fps: currentFPS } = performanceEngine.current.update(currentTime)
 
       if (shouldRender) {
-        // Update physics with delta time
-        const newVelocity = smoothPhysics.current.updateVelocity(birdVelocityRef.current, deltaTime)
+        // Update physics with delta time (apply slow time effect)
+        const effectiveDeltaTime = character.ability === "gla-shield-time-flight" && slowTimeActive ? deltaTime * 0.5 : deltaTime
+        const newVelocity = smoothPhysics.current.updateVelocity(birdVelocityRef.current, effectiveDeltaTime)
         birdVelocityRef.current = newVelocity
         setBirdVelocity(newVelocity)
 
-        const newY = smoothPhysics.current.updatePosition(birdY, newVelocity, deltaTime)
+        const newY = smoothPhysics.current.updatePosition(birdY, newVelocity, effectiveDeltaTime)
         const clampedY = Math.max(0, Math.min(536, newY))
         setBirdY(clampedY)
 
@@ -383,6 +402,31 @@ export default function OptimizedGameScreen({
         if (invisibilityCooldown > 0) {
           setInvisibilityCooldown((prev) => Math.max(0, prev - deltaTime * 60))
         }
+        
+        // Handle GLA abilities for Hitesh
+        if (character.ability === "gla-shield-time-flight") {
+          // Slow time cooldown management
+          if (slowTimeCooldown > 0) {
+            setSlowTimeCooldown((prev) => Math.max(0, prev - deltaTime * 60))
+          } else if (!slowTimeActive) {
+            // Trigger slow time every 15 seconds
+            setSlowTimeActive(true)
+            setSlowTimeCooldown(900) // 15 seconds at 60fps
+            setTimeout(() => setSlowTimeActive(false), 3000) // 3 seconds duration
+            playSound(1400, 0.3)
+          }
+          
+          // Final flight timer
+          if (finalFlightActive) {
+            setTimeout(() => {
+              setFinalFlightActive(false)
+              if (lives <= 0) {
+                onGameOver(currentScore)
+                onCoinsCollected(collectedCoins)
+              }
+            }, 5000) // 5 seconds of invincibility
+          }
+        }
 
         // Update performance metrics
         setFPS(currentFPS)
@@ -420,7 +464,7 @@ export default function OptimizedGameScreen({
 
   // Optimized collision detection with spatial partitioning
   useEffect(() => {
-    if (gameState !== "playing" || !gameStarted || isInvisible) return
+    if (gameState !== "playing" || !gameStarted || isInvisible || finalFlightActive) return
 
     const birdRect = {
       x: 100 - hitboxSize / 2,
@@ -459,15 +503,34 @@ export default function OptimizedGameScreen({
           birdRect.y < bottomPipe.y + bottomPipe.height &&
           birdRect.y + birdRect.height > bottomPipe.y)
       ) {
-        if (lives > 1) {
+        // Handle GLA shield ability first
+        if (character.ability === "gla-shield-time-flight" && hasShield) {
+          setHasShield(false) // Shield absorbs one hit
+          setIsInvisible(true)
+          setTimeout(() => setIsInvisible(false), 1000)
+          playSound(800, 0.3) // Different sound for shield
+        } else if (lives > 1) {
           setLives((prev) => prev - 1)
           setIsInvisible(true)
           setTimeout(() => setIsInvisible(false), 1000)
           playSound(200, 0.3)
         } else {
-          playSound(150, 0.5)
-          onGameOver(currentScore)
-          onCoinsCollected(collectedCoins)
+          // Check for final flight ability (only for Hitesh)
+          if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
+            setFinalFlightActive(true)
+            setFinalFlightUsed(true)
+            setHasRevived(true)
+            setLives(1) // Revive with 1 life
+            setBirdY(300)
+            setSmoothBirdY(300)
+            setBirdVelocity(0)
+            birdVelocityRef.current = 0
+            playSound(1600, 0.5) // Special revival sound
+          } else {
+            playSound(150, 0.5)
+            onGameOver(currentScore)
+            onCoinsCollected(collectedCoins)
+          }
         }
         return
       }
@@ -475,7 +538,17 @@ export default function OptimizedGameScreen({
 
     // Ground collision - updated logic
     if (smoothBirdY <= 0 || smoothBirdY >= 536) {
-      if (lives > 1) {
+      // Handle GLA shield ability first
+      if (character.ability === "gla-shield-time-flight" && hasShield) {
+        setHasShield(false) // Shield absorbs one hit
+        setBirdY(300)
+        setSmoothBirdY(300)
+        setBirdVelocity(0)
+        birdVelocityRef.current = 0
+        setIsInvisible(true)
+        setTimeout(() => setIsInvisible(false), 1000)
+        playSound(800, 0.3) // Different sound for shield
+      } else if (lives > 1) {
         setLives((prev) => prev - 1)
         setBirdY(300)
         setSmoothBirdY(300)
@@ -485,12 +558,25 @@ export default function OptimizedGameScreen({
         setTimeout(() => setIsInvisible(false), 1000)
         playSound(200, 0.3)
       } else {
-        playSound(150, 0.5)
-        onGameOver(currentScore)
+        // Check for final flight ability (only for Hitesh)
+        if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
+          setFinalFlightActive(true)
+          setFinalFlightUsed(true)
+          setHasRevived(true)
+          setLives(1) // Revive with 1 life
+          setBirdY(300)
+          setSmoothBirdY(300)
+          setBirdVelocity(0)
+          birdVelocityRef.current = 0
+          playSound(1600, 0.5) // Special revival sound
+        } else {
+          playSound(150, 0.5)
+          onGameOver(currentScore)
         onCoinsCollected(collectedCoins)
       }
       return // Important: exit early to prevent further collision checks
     }
+  }
   }, [
     smoothBirdY,
     pipes,
@@ -503,6 +589,9 @@ export default function OptimizedGameScreen({
     lives,
     hitboxSize,
     isInvisible,
+    finalFlightActive,
+    hasShield,
+    character.ability,
     playSound,
   ])
 
@@ -707,15 +796,25 @@ export default function OptimizedGameScreen({
         <div className="absolute inset-0">
           {/* Optimized Bird with smooth interpolation */}
           <div
-            className={`absolute transition-none ${isInvisible ? "opacity-50" : ""}`}
+            className={`absolute transition-none ${isInvisible ? "opacity-50" : ""} ${finalFlightActive ? "animate-pulse" : ""}`}
             style={{
               left: "100px",
               top: `${smoothBirdY}px`,
               transform: `translate(-50%, -50%) rotate(${smoothBirdRotation}deg)`,
               willChange: "transform",
+              filter: finalFlightActive ? "drop-shadow(0 0 20px #FFD700) drop-shadow(0 0 40px #FFA500)" : "none",
             }}
           >
-            <AnimatedCharacter character={character} size="md" animation="wiggle" showSparkles={isInvisible} />
+            <AnimatedCharacter 
+              character={character} 
+              size="md" 
+              animation="wiggle" 
+              showSparkles={isInvisible || finalFlightActive} 
+              showLightningTrail={finalFlightActive}
+            />
+            {finalFlightActive && (
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 opacity-30 animate-ping" />
+            )}
           </div>
 
           {/* Optimized Pipes with viewport culling */}
@@ -890,6 +989,52 @@ export default function OptimizedGameScreen({
                   <Eye className="w-4 h-4" />
                 )}
               </ModernButton>
+            )}
+
+            {character.ability === "gla-shield-time-flight" && (
+              <div className="space-y-2">
+                {/* Shield Indicator */}
+                <UICard 
+                  variant={hasShield ? "gradient" : "glass"} 
+                  padding="sm" 
+                  className={`border ${hasShield ? "border-yellow-400/60 shadow-glow-yellow" : "border-white/40"}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🛡️</span>
+                    <span className="font-sans text-xs font-bold text-gray-800">
+                      {hasShield ? "Shield Active" : "Shield Used"}
+                    </span>
+                  </div>
+                </UICard>
+
+                {/* Slow Time Indicator */}
+                <UICard 
+                  variant={slowTimeActive ? "gradient" : "glass"} 
+                  padding="sm" 
+                  className={`border ${slowTimeActive ? "border-blue-400/60 shadow-glow-blue animate-pulse" : "border-white/40"}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⏰</span>
+                    <span className="font-sans text-xs font-bold text-gray-800">
+                      {slowTimeActive ? "Time Slowed" : slowTimeCooldown > 0 ? `${Math.ceil(slowTimeCooldown / 60)}s` : "Ready"}
+                    </span>
+                  </div>
+                </UICard>
+
+                {/* Final Flight Indicator */}
+                <UICard 
+                  variant={finalFlightActive ? "gradient" : finalFlightUsed ? "glass" : "elevated"} 
+                  padding="sm" 
+                  className={`border ${finalFlightActive ? "border-gold-400/60 shadow-glow-gold animate-pulse" : finalFlightUsed ? "border-white/40" : "border-gold-400/40"}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">👼</span>
+                    <span className="font-sans text-xs font-bold text-gray-800">
+                      {finalFlightActive ? "INVINCIBLE!" : finalFlightUsed ? "Flight Used" : "Flight Ready"}
+                    </span>
+                  </div>
+                </UICard>
+              </div>
             )}
           </div>
         </div>
