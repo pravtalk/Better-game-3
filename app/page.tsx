@@ -17,7 +17,7 @@ export type CharacterAbility =
   | "extra-lives"
   | "invisibility"
   | "slow-gravity"
-  | "small-hitbox"
+  | "clone-revival"
   | "fast-flap"
   | "bonus-points"
   | "gla-shield-time-flight"
@@ -100,9 +100,9 @@ export const characters: Character[] = [
     name: "Satyam",
     color: "#F7DC6F",
     avatar: "🧑‍🔬",
-    ability: "small-hitbox",
+    ability: "clone-revival",
     unlockCost: 10,
-    description: "Smaller hitbox - easier to pass through gaps",
+    description: "Clone Revival - spawns a clone when hit (once per game)",
   },
   {
     id: "samar",

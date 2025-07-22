@@ -117,6 +117,11 @@ export default function OptimizedGameScreen({
   const [powerupSlowTimeUsed, setPowerupSlowTimeUsed] = useState(false)
   const [powerupDoubleCoins, setPowerupDoubleCoins] = useState(selectedPowerups.includes("double-coin"))
   const [powerupMagnetActive, setPowerupMagnetActive] = useState(selectedPowerups.includes("magnet"))
+  
+  // Clone Revival state for Satyam
+  const [cloneRevivalUsed, setCloneRevivalUsed] = useState(false)
+  const [isClone, setIsClone] = useState(false)
+  const [cloneActivating, setCloneActivating] = useState(false)
 
   // Performance monitoring
   const [fps, setFPS] = useState(60)
@@ -233,6 +238,11 @@ export default function OptimizedGameScreen({
     setPowerupSlowTimeUsed(false)
     setPowerupDoubleCoins(selectedPowerups.includes("double-coin"))
     setPowerupMagnetActive(selectedPowerups.includes("magnet"))
+    
+    // Reset Clone Revival states
+    setCloneRevivalUsed(false)
+    setIsClone(false)
+    setCloneActivating(false)
 
     // Reset refs
     birdVelocityRef.current = 0
@@ -563,6 +573,14 @@ export default function OptimizedGameScreen({
           setTimeout(() => setIsInvisible(false), 1000)
           playSound(200, 0.3)
         } else {
+          // Check for clone revival ability (Satyam)
+          if (character.ability === "clone-revival" && !cloneRevivalUsed) {
+            const revived = activateCloneRevival()
+            if (revived) {
+              return // Continue playing as clone
+            }
+          }
+          
           // Check for final flight ability (only for Hitesh)
           if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
             setFinalFlightActive(true)
@@ -614,21 +632,29 @@ export default function OptimizedGameScreen({
         setIsInvisible(true)
         setTimeout(() => setIsInvisible(false), 1000)
         playSound(200, 0.3)
-      } else {
-        // Check for final flight ability (only for Hitesh)
-        if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
-          setFinalFlightActive(true)
-          setFinalFlightUsed(true)
-          setHasRevived(true)
-          setLives(1) // Revive with 1 life
-          setBirdY(300)
-          setSmoothBirdY(300)
-          setBirdVelocity(0)
-          birdVelocityRef.current = 0
-          playSound(1600, 0.5) // Special revival sound
-        } else {
-          playSound(150, 0.5)
-          onGameOver(currentScore)
+              } else {
+          // Check for clone revival ability (Satyam)
+          if (character.ability === "clone-revival" && !cloneRevivalUsed) {
+            const revived = activateCloneRevival()
+            if (revived) {
+              return // Continue playing as clone
+            }
+          }
+          
+          // Check for final flight ability (only for Hitesh)
+          if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
+            setFinalFlightActive(true)
+            setFinalFlightUsed(true)
+            setHasRevived(true)
+            setLives(1) // Revive with 1 life
+            setBirdY(300)
+            setSmoothBirdY(300)
+            setBirdVelocity(0)
+            birdVelocityRef.current = 0
+            playSound(1600, 0.5) // Special revival sound
+          } else {
+            playSound(150, 0.5)
+            onGameOver(currentScore)
         onCoinsCollected(collectedCoins)
       }
       return // Important: exit early to prevent further collision checks
@@ -739,6 +765,30 @@ export default function OptimizedGameScreen({
       playSound(1400, 0.3)
     }
   }, [selectedPowerups, powerupSlowTimeUsed, slowTimeActive, playSound])
+
+  // Clone Revival ability for Satyam
+  const activateCloneRevival = useCallback(() => {
+    if (character.ability === "clone-revival" && !cloneRevivalUsed) {
+      setCloneActivating(true)
+      setCloneRevivalUsed(true)
+      setIsClone(true)
+      
+      // Reset position to safe spot and clear velocity
+      setBirdY(300)
+      setSmoothBirdY(300)
+      setBirdVelocity(0)
+      birdVelocityRef.current = 0
+      
+      // Visual effect duration
+      setTimeout(() => setCloneActivating(false), 500)
+      
+      // Play clone activation sound
+      playSound(1600, 0.4)
+      
+      return true
+    }
+    return false
+  }, [character.ability, cloneRevivalUsed, playSound])
 
   if (gameState === "game-over") {
     return (
