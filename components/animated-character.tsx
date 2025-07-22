@@ -10,6 +10,7 @@ interface AnimatedCharacterProps {
   showSparkles?: boolean
   showLightningTrail?: boolean
   showJetpackEffects?: boolean
+  showCloneEffects?: boolean
 }
 
 export function AnimatedCharacter({
@@ -19,9 +20,11 @@ export function AnimatedCharacter({
   showSparkles = false,
   showLightningTrail = false,
   showJetpackEffects = false,
+  showCloneEffects = false,
 }: AnimatedCharacterProps) {
   const isGLA = character.ability === "gla-shield-time-flight"
   const isKapilSir = character.ability === "jetpack-god-flight"
+  const isSatyam = character.ability === "clone-revival"
   const sizes = {
     sm: "text-2xl",
     md: "text-4xl",
@@ -118,6 +121,8 @@ export function AnimatedCharacter({
             ? `radial-gradient(circle, #FFD70080 0%, #FFA50080 50%, transparent 70%)`
             : isKapilSir && showJetpackEffects
             ? `radial-gradient(circle, #1E40AF80 0%, #3B82F680 50%, transparent 70%)`
+            : isSatyam && showCloneEffects
+            ? `radial-gradient(circle, #F7DC6F80 0%, #F39C1280 50%, transparent 70%)`
             : `radial-gradient(circle, ${character.color}40 0%, transparent 70%)`,
         }}
       />

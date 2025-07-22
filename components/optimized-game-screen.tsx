@@ -932,7 +932,9 @@ export default function OptimizedGameScreen({
         <div className="absolute inset-0">
           {/* Optimized Bird with smooth interpolation */}
           <div
-            className={`absolute transition-none ${isInvisible ? "opacity-50" : ""} ${finalFlightActive || jetpackActive ? "animate-pulse" : ""}`}
+            className={`absolute transition-none ${isInvisible ? "opacity-50" : ""} ${
+              finalFlightActive || jetpackActive || cloneActivating ? "animate-pulse" : ""
+            } ${isClone ? "opacity-80" : ""}`}
             style={{
               left: "100px",
               top: `${smoothBirdY}px`,
@@ -941,7 +943,11 @@ export default function OptimizedGameScreen({
               filter: finalFlightActive 
                 ? "drop-shadow(0 0 20px #FFD700) drop-shadow(0 0 40px #FFA500)" 
                 : jetpackActive 
-                ? "drop-shadow(0 0 15px #1E40AF) drop-shadow(0 0 30px #3B82F6) blur(0.5px)" 
+                ? "drop-shadow(0 0 15px #1E40AF) drop-shadow(0 0 30px #3B82F6) blur(0.5px)"
+                : isClone
+                ? "drop-shadow(0 0 10px #F7DC6F) drop-shadow(0 0 20px #F39C12)"
+                : cloneActivating
+                ? "drop-shadow(0 0 15px #FFFFFF) blur(1px)"
                 : "none",
             }}
           >
@@ -949,9 +955,10 @@ export default function OptimizedGameScreen({
               character={character} 
               size="md" 
               animation={jetpackActive ? "float" : "wiggle"} 
-              showSparkles={isInvisible || finalFlightActive || jetpackActive} 
+              showSparkles={isInvisible || finalFlightActive || jetpackActive || cloneActivating} 
               showLightningTrail={finalFlightActive}
               showJetpackEffects={jetpackActive}
+              showCloneEffects={isClone}
             />
             {finalFlightActive && (
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 opacity-30 animate-ping" />
@@ -969,6 +976,37 @@ export default function OptimizedGameScreen({
                 {/* Speed blur effect */}
                 <div className="absolute -left-4 top-1/2 transform -translate-y-1/2 w-16 h-1 bg-gradient-to-r from-blue-300 to-transparent opacity-60 animate-pulse" />
               </>
+            )}
+            
+            {/* Clone activation effect */}
+            {cloneActivating && (
+              <>
+                {/* Flash effect */}
+                <div className="absolute inset-0 bg-white rounded-full opacity-80 animate-ping" />
+                {/* Smoke particles */}
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute text-gray-400 animate-bounce"
+                    style={{
+                      left: `${20 + Math.random() * 60}%`,
+                      top: `${20 + Math.random() * 60}%`,
+                      animationDelay: `${Math.random() * 0.5}s`,
+                      animationDuration: "0.8s",
+                      fontSize: "12px",
+                    }}
+                  >
+                    💨
+                  </div>
+                ))}
+                {/* Clone glow ring */}
+                <div className="absolute inset-0 rounded-full border-4 border-yellow-400 opacity-60 animate-ping" />
+              </>
+            )}
+            
+            {/* Clone glow effect */}
+            {isClone && !cloneActivating && (
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 opacity-30 animate-pulse" />
             )}
           </div>
 
@@ -1210,6 +1248,24 @@ export default function OptimizedGameScreen({
                   )}
                 </div>
               </ModernButton>
+            )}
+
+            {character.ability === "clone-revival" && (
+              <UICard 
+                variant={cloneRevivalUsed ? "glass" : isClone ? "gradient" : "elevated"} 
+                padding="sm" 
+                className={`border ${
+                  isClone ? "border-yellow-400/60 shadow-glow-yellow animate-pulse" : 
+                  cloneRevivalUsed ? "border-white/40" : "border-yellow-400/40"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🧬</span>
+                  <span className="font-sans text-xs font-bold text-gray-800">
+                    {isClone ? "CLONE ACTIVE" : cloneRevivalUsed ? "Clone Used" : "Clone Ready"}
+                  </span>
+                </div>
+              </UICard>
             )}
 
             {/* Powerup Indicators */}

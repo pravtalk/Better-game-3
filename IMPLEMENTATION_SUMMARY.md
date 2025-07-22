@@ -81,7 +81,36 @@
 - Visual state changes (Available/Active/Used)
 - Blue border and rocket emoji label in character selection
 
-### 4. Added Powerups Store System
+### 4. Updated Character "Satyam" with Clone Revival
+
+#### 🧬 **Clone Revival Ability**
+- **Replaced**: Old "small-hitbox" ability with new "Clone Revival"
+- **Trigger**: Activates when Satyam hits pipes or falls to ground
+- **Mechanics**: Instantly spawns a clone at the collision spot
+- **Continuation**: Clone becomes the new active character
+- **Limitation**: Works only once per game run
+
+#### ⚡ **Clone Features**
+- **Instant Spawn**: No screen reset or game interruption
+- **Same Physics**: Clone has identical speed and gravity
+- **Visual Effects**: Flash, smoke particles, and glow ring during spawn
+- **Clone Appearance**: Slightly transparent (80% opacity) with golden glow
+- **Sound Effect**: Special clone activation sound (1600Hz)
+
+#### 🎮 **UI Integration**
+- **Status Indicator**: Shows "Clone Ready" → "CLONE ACTIVE" → "Clone Used"
+- **Visual Feedback**: Real-time status with appropriate colors
+- **Clone Glow**: Active clone has yellow/orange glow effect
+- **Activation Animation**: White flash and smoke particles during transformation
+
+#### 🔧 **Technical Implementation**
+- **State Management**: Tracks clone usage and active status
+- **Collision Override**: Takes priority over normal game over logic
+- **Position Reset**: Clone spawns at safe center position (Y: 300)
+- **Velocity Reset**: Clears existing momentum for clean restart
+- **One-Time Use**: Cannot be used again once activated
+
+### 5. Added Powerups Store System
 
 #### 🛒 **Powerups Store Features**
 - **Store Screen**: Accessible from home screen with dedicated button
@@ -125,7 +154,7 @@
 - **Visual Feedback**: Color-coded indicators and animations
 - **Sound Effects**: Unique audio for each powerup activation
 
-### 5. Migration & Save Data Handling
+### 6. Migration & Save Data Handling
 
 #### 💾 **Save Data Migration**
 - Existing players with Hitesh unlocked have it removed from unlocked characters
@@ -138,12 +167,13 @@
 - Ensures no player is left without an unlocked character
 - Preserves other save data (coins, high scores, etc.)
 
-### 6. Technical Implementation Details
+### 7. Technical Implementation Details
 
 #### 🎨 **New Ability Types**
 ```typescript
 "gla-shield-time-flight" // Combined ability for all three GLA features
 "jetpack-god-flight"     // Jetpack ability for Kapil Sir
+"clone-revival"          // Clone Revival ability for Satyam
 ```
 
 #### 🎮 **Game State Management**
@@ -168,11 +198,17 @@
 - `powerupDoubleCoins`: Enables 2x coin collection
 - `powerupMagnetActive`: Enables extended coin collection range
 
+**Clone Revival (Satyam):**
+- `cloneRevivalUsed`: Tracks if clone ability has been used
+- `isClone`: Indicates if currently playing as clone
+- `cloneActivating`: Manages visual effects during clone spawn
+
 #### 🎵 **Audio System**
 - Shield activation: 800Hz sound
 - Slow time activation: 1400Hz sound
 - Final Flight revival: 1600Hz sound
 - Jetpack ignition: 1800Hz sound
+- Clone revival activation: 1600Hz sound
 - Powerup purchase success: Rising tone sequence (800-1000-1200Hz)
 - Each ability has unique sound frequencies
 
@@ -185,6 +221,8 @@
 - Powerup shield takes priority over character abilities
 - Enhanced coin collection with magnet range extension
 - Double coin value calculation for powerup users
+- Clone revival collision override system
+- Instant character state switching without game interruption
 
 #### 🎨 **Visual Effects System**
 - Enhanced AnimatedCharacter component with lightning and jetpack effects
@@ -223,8 +261,11 @@
 - Jetpack exhaust flames and particle trails (Kapil Sir)
 - Enhanced sparkle effects for all special abilities
 - Speed blur and motion effects during jetpack flight
+- Clone activation effects: flash, smoke particles, glow ring
+- Semi-transparent clone appearance with golden glow
+- Real-time visual state transitions
 
-### 7. Performance Optimizations
+### 8. Performance Optimizations
 
 #### ⚡ **Efficient Rendering**
 - Conditional effect rendering only when abilities are active
@@ -257,6 +298,14 @@
    - After 5 seconds, returns to normal flappy gameplay
    - Jetpack becomes unavailable for rest of run
 
+5. **Test Satyam Clone Revival**:
+   - Select Satyam character (10 coins)
+   - Start game - "Clone Ready" indicator should show
+   - Hit a pipe or fall - clone should spawn instantly
+   - Clone has golden glow and continues playing
+   - Indicator shows "CLONE ACTIVE"
+   - If clone dies, normal game over occurs
+
 ## 🔧 Technical Files Modified
 
 - `app/page.tsx` - Character definitions and migration logic
@@ -287,6 +336,20 @@
 - ✅ Visual effects: flames, blue trail, glow, speed blur
 - ✅ "Jetpack On" label with countdown
 - ✅ Blue border and rocket emoji in character selection
+
+**Satyam Character:**
+- ✅ Updated with Clone Revival ability (replaces small-hitbox)
+- ✅ Instant clone spawn on collision (once per game)
+- ✅ Visual effects: flash, smoke, golden glow
+- ✅ Real-time UI indicator with status updates
+- ✅ Collision override system implemented
+
+**Powerups Store:**
+- ✅ Complete store system with 4 powerups
+- ✅ Pre-game selection screen with visual feedback
+- ✅ Shield, Slow Time, Double Coin, Magnet powerups
+- ✅ Purchase animations and sound effects
+- ✅ Inventory management and local storage
 
 **Technical:**
 - ✅ Save data migration implemented
