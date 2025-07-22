@@ -10,6 +10,7 @@ import type { Character } from "@/app/page"
 interface HomeScreenProps {
   onStartGame: () => void
   onSelectCharacter: () => void
+  onPowerupsStore: () => void
   onHowToPlay: () => void
   selectedCharacter: Character
   highScore: number
@@ -19,6 +20,7 @@ interface HomeScreenProps {
 export default function HomeScreen({
   onStartGame,
   onSelectCharacter,
+  onPowerupsStore,
   onHowToPlay,
   selectedCharacter,
   highScore,
@@ -110,6 +112,13 @@ export default function HomeScreen({
               <span className="flex items-center justify-center gap-2 sm:gap-3">
                 <span className="text-lg sm:text-xl">👤</span>
                 <span className="font-bold text-sm sm:text-base">CHARACTERS</span>
+              </span>
+            </ModernButton>
+
+            <ModernButton variant="warning" size="md" onClick={onPowerupsStore} className="w-full border-2 border-orange-300 shadow-glow-yellow">
+              <span className="flex items-center justify-center gap-2 sm:gap-3">
+                <span className="text-lg sm:text-xl">🛒</span>
+                <span className="font-bold text-sm sm:text-base">POWERUPS STORE</span>
               </span>
             </ModernButton>
 

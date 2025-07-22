@@ -81,7 +81,51 @@
 - Visual state changes (Available/Active/Used)
 - Blue border and rocket emoji label in character selection
 
-### 4. Migration & Save Data Handling
+### 4. Added Powerups Store System
+
+#### 🛒 **Powerups Store Features**
+- **Store Screen**: Accessible from home screen with dedicated button
+- **Grid Layout**: Clean 2-column responsive layout for powerups
+- **Real-time Pricing**: Shows coin cost for each powerup
+- **Inventory System**: Displays owned count with blue badges
+- **Purchase Animation**: Success/error messages with sound effects
+- **Coin Balance**: Always visible at top of store
+
+#### 🧨 **Available Powerups**
+1. **Shield** (🛡️) - 20 coins
+   - Protects from 1 hit (pipes or ground)
+   - Absorbs collision and grants brief invincibility
+   
+2. **Slow Time** (⏰) - 25 coins
+   - Manual activation button during gameplay
+   - Slows down game for 3 seconds (70% speed reduction)
+   - One-time use per purchased powerup
+
+3. **Double Coin** (💰) - 30 coins
+   - Doubles all coin collection for entire run
+   - Passive effect, no activation needed
+   - Shows "2x Coins" indicator during gameplay
+
+4. **Magnet** (🧲) - 15 coins
+   - Increases coin collection range from 30 to 50 pixels
+   - Automatically attracts nearby coins
+   - Passive effect, shows "Magnet Active" indicator
+
+#### ⚙️ **Usage Logic**
+- **Pre-Game Selection**: Choose powerups before starting each run
+- **Visual Selection**: Tap to select/deselect with visual feedback
+- **Inventory Management**: Only consumed when game actually starts
+- **Smart UI**: Shows available powerups with inventory counts
+- **Combination Support**: Can use multiple powerups simultaneously
+
+#### 🎮 **In-Game Integration**
+- **Active Indicators**: Real-time powerup status display
+- **Manual Activation**: Slow Time has dedicated button
+- **Passive Effects**: Shield, Double Coins, Magnet work automatically
+- **Visual Feedback**: Color-coded indicators and animations
+- **Sound Effects**: Unique audio for each powerup activation
+
+### 5. Migration & Save Data Handling
 
 #### 💾 **Save Data Migration**
 - Existing players with Hitesh unlocked have it removed from unlocked characters
@@ -94,7 +138,7 @@
 - Ensures no player is left without an unlocked character
 - Preserves other save data (coins, high scores, etc.)
 
-### 5. Technical Implementation Details
+### 6. Technical Implementation Details
 
 #### 🎨 **New Ability Types**
 ```typescript
@@ -116,11 +160,20 @@
 - `jetpackActive`: Tracks if jetpack is currently active
 - `jetpackTimeLeft`: Countdown timer for jetpack duration
 
+**Powerup System:**
+- `powerupInventory`: Tracks owned count of each powerup type
+- `selectedPowerups`: Array of powerups selected for current run
+- `powerupShieldActive`: Tracks if shield protection is available
+- `powerupSlowTimeUsed`: Prevents multiple slow time activations
+- `powerupDoubleCoins`: Enables 2x coin collection
+- `powerupMagnetActive`: Enables extended coin collection range
+
 #### 🎵 **Audio System**
 - Shield activation: 800Hz sound
 - Slow time activation: 1400Hz sound
 - Final Flight revival: 1600Hz sound
 - Jetpack ignition: 1800Hz sound
+- Powerup purchase success: Rising tone sequence (800-1000-1200Hz)
 - Each ability has unique sound frequencies
 
 #### 🎯 **Physics Modifications**
@@ -129,6 +182,9 @@
 - Shield collision handling with priority over regular lives
 - Jetpack mode locks Y-position and disables gravity/rotation
 - Straight-line flight mechanics during jetpack activation
+- Powerup shield takes priority over character abilities
+- Enhanced coin collection with magnet range extension
+- Double coin value calculation for powerup users
 
 #### 🎨 **Visual Effects System**
 - Enhanced AnimatedCharacter component with lightning and jetpack effects

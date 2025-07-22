@@ -11,7 +11,7 @@ import { PerformanceEngine, EasingEngine, SmoothPhysics } from "./performance-en
 import { RenderOptimizer, ViewportCuller } from "./render-optimizer"
 import { GamePhysicsEngine, type DifficultyMode } from "./game-physics"
 import { Home, RotateCcw, Play, Heart, Eye, EyeOff, Target, Zap, Activity } from "lucide-react"
-import type { Character, GameMode, Level, GameState } from "@/app/page"
+import type { Character, GameMode, Level, GameState, PowerupType } from "@/app/page"
 
 interface OptimizedGameScreenProps {
   character: Character
@@ -22,6 +22,7 @@ interface OptimizedGameScreenProps {
   score: number
   highScore: number
   totalCoins: number
+  selectedPowerups: PowerupType[]
   onGameOver: (score: number) => void
   onCoinsCollected: (coins: number) => void
   onRetry: () => void
@@ -70,6 +71,7 @@ export default function OptimizedGameScreen({
   score,
   highScore,
   totalCoins,
+  selectedPowerups,
   onGameOver,
   onCoinsCollected,
   onRetry,
@@ -109,6 +111,12 @@ export default function OptimizedGameScreen({
   const [jetpackAvailable, setJetpackAvailable] = useState(character.ability === "jetpack-god-flight")
   const [jetpackActive, setJetpackActive] = useState(false)
   const [jetpackTimeLeft, setJetpackTimeLeft] = useState(0)
+  
+  // Powerup states
+  const [powerupShieldActive, setPowerupShieldActive] = useState(selectedPowerups.includes("shield"))
+  const [powerupSlowTimeUsed, setPowerupSlowTimeUsed] = useState(false)
+  const [powerupDoubleCoins, setPowerupDoubleCoins] = useState(selectedPowerups.includes("double-coin"))
+  const [powerupMagnetActive, setPowerupMagnetActive] = useState(selectedPowerups.includes("magnet"))
 
   // Performance monitoring
   const [fps, setFPS] = useState(60)
@@ -219,6 +227,12 @@ export default function OptimizedGameScreen({
     setJetpackAvailable(character.ability === "jetpack-god-flight")
     setJetpackActive(false)
     setJetpackTimeLeft(0)
+    
+    // Reset Powerup states
+    setPowerupShieldActive(selectedPowerups.includes("shield"))
+    setPowerupSlowTimeUsed(false)
+    setPowerupDoubleCoins(selectedPowerups.includes("double-coin"))
+    setPowerupMagnetActive(selectedPowerups.includes("magnet"))
 
     // Reset refs
     birdVelocityRef.current = 0
@@ -238,7 +252,7 @@ export default function OptimizedGameScreen({
 
     // Reset performance engine
     performanceEngine.current = new PerformanceEngine()
-  }, [character.ability, difficulty])
+  }, [character.ability, difficulty, selectedPowerups])
 
   useEffect(() => {
     resetGame()
@@ -532,8 +546,13 @@ export default function OptimizedGameScreen({
           birdRect.y < bottomPipe.y + bottomPipe.height &&
           birdRect.y + birdRect.height > bottomPipe.y)
       ) {
-        // Handle GLA shield ability first
-        if (character.ability === "gla-shield-time-flight" && hasShield) {
+        // Handle powerup shield first
+        if (powerupShieldActive) {
+          setPowerupShieldActive(false) // Shield absorbs one hit
+          setIsInvisible(true)
+          setTimeout(() => setIsInvisible(false), 1000)
+          playSound(800, 0.3) // Shield sound
+        } else if (character.ability === "gla-shield-time-flight" && hasShield) {
           setHasShield(false) // Shield absorbs one hit
           setIsInvisible(true)
           setTimeout(() => setIsInvisible(false), 1000)
@@ -567,8 +586,17 @@ export default function OptimizedGameScreen({
 
     // Ground collision - updated logic
     if (smoothBirdY <= 0 || smoothBirdY >= 536) {
-      // Handle GLA shield ability first
-      if (character.ability === "gla-shield-time-flight" && hasShield) {
+      // Handle powerup shield first
+      if (powerupShieldActive) {
+        setPowerupShieldActive(false) // Shield absorbs one hit
+        setBirdY(300)
+        setSmoothBirdY(300)
+        setBirdVelocity(0)
+        birdVelocityRef.current = 0
+        setIsInvisible(true)
+        setTimeout(() => setIsInvisible(false), 1000)
+        playSound(800, 0.3) // Shield sound
+      } else if (character.ability === "gla-shield-time-flight" && hasShield) {
         setHasShield(false) // Shield absorbs one hit
         setBirdY(300)
         setSmoothBirdY(300)
@@ -621,6 +649,7 @@ export default function OptimizedGameScreen({
     finalFlightActive,
     hasShield,
     jetpackActive,
+    powerupShieldActive,
     character.ability,
     playSound,
   ])
@@ -650,8 +679,10 @@ export default function OptimizedGameScreen({
       prev.map((coin) => {
         if (!coin.collected) {
           const distance = Math.sqrt(Math.pow(coin.x - 100, 2) + Math.pow(coin.y - smoothBirdY, 2))
-          if (distance < 30) {
-            setCollectedCoins((coins) => coins + 1)
+          const collectDistance = powerupMagnetActive ? 50 : 30 // Magnet increases collection range
+          if (distance < collectDistance) {
+            const coinValue = powerupDoubleCoins ? 2 : 1 // Double coins powerup
+            setCollectedCoins((coins) => coins + coinValue)
             playSound(800, 0.15)
             return { ...coin, collected: true, targetScale: 0 }
           }
@@ -698,6 +729,16 @@ export default function OptimizedGameScreen({
       playSound(1800, 0.4) // Jetpack ignition sound
     }
   }, [character.ability, jetpackAvailable, jetpackActive, playSound])
+
+  // Powerup Slow Time ability
+  const activatePowerupSlowTime = useCallback(() => {
+    if (selectedPowerups.includes("slow-time") && !powerupSlowTimeUsed && !slowTimeActive) {
+      setSlowTimeActive(true)
+      setPowerupSlowTimeUsed(true)
+      setTimeout(() => setSlowTimeActive(false), 3000) // 3 seconds duration
+      playSound(1400, 0.3)
+    }
+  }, [selectedPowerups, powerupSlowTimeUsed, slowTimeActive, playSound])
 
   if (gameState === "game-over") {
     return (
@@ -1117,6 +1158,46 @@ export default function OptimizedGameScreen({
                   )}
                 </div>
               </ModernButton>
+            )}
+
+            {/* Powerup Indicators */}
+            {selectedPowerups.length > 0 && (
+              <div className="space-y-2">
+                <UICard variant="glass" padding="sm" className="border border-purple-400/60">
+                  <h4 className="font-sans text-xs font-bold text-purple-800 mb-2">ACTIVE POWERUPS</h4>
+                  <div className="space-y-1">
+                    {powerupShieldActive && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">🛡️</span>
+                        <span className="font-sans text-xs font-bold text-blue-800">Shield Ready</span>
+                      </div>
+                    )}
+                    {selectedPowerups.includes("slow-time") && (
+                      <ModernButton
+                        variant={powerupSlowTimeUsed ? "light" : "warning"}
+                        size="sm"
+                        onClick={activatePowerupSlowTime}
+                        disabled={powerupSlowTimeUsed || slowTimeActive}
+                        className="text-xs min-w-[80px] w-full"
+                      >
+                        {slowTimeActive ? "⏰ Active" : powerupSlowTimeUsed ? "⏰ Used" : "⏰ Slow Time"}
+                      </ModernButton>
+                    )}
+                    {powerupDoubleCoins && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">💰</span>
+                        <span className="font-sans text-xs font-bold text-yellow-800">2x Coins</span>
+                      </div>
+                    )}
+                    {powerupMagnetActive && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">🧲</span>
+                        <span className="font-sans text-xs font-bold text-purple-800">Magnet Active</span>
+                      </div>
+                    )}
+                  </div>
+                </UICard>
+              </div>
             )}
           </div>
         </div>
