@@ -18,6 +18,7 @@ export type CharacterAbility =
   | "small-hitbox"
   | "fast-flap"
   | "bonus-points"
+  | "gla-shield-time-flight"
 
 export type Character = {
   id: string
@@ -47,13 +48,22 @@ export type Level = {
 
 export const characters: Character[] = [
   {
-    id: "hitesh",
-    name: "Hitesh",
-    color: "#FF6B6B",
-    avatar: "🧑‍🎨",
+    id: "tt",
+    name: "TT",
+    color: "#9CA3AF",
+    avatar: "👤",
     ability: "normal",
     unlockCost: 0,
-    description: "Default character with normal gameplay",
+    description: "Default character with basic gameplay",
+  },
+  {
+    id: "hitesh",
+    name: "Hitesh",
+    color: "#FFD700",
+    avatar: "🧑‍🎨",
+    ability: "gla-shield-time-flight",
+    unlockCost: 30,
+    description: "GLA Character with shield, time control, and resurrection!",
   },
   {
     id: "rudra",
@@ -171,7 +181,7 @@ export default function FlappyHuman() {
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState(0)
   const [totalCoins, setTotalCoins] = useState(50)
-  const [unlockedCharacters, setUnlockedCharacters] = useState<string[]>(["hitesh"])
+  const [unlockedCharacters, setUnlockedCharacters] = useState<string[]>(["tt"])
   const [unlockedModes, setUnlockedModes] = useState<string[]>([
     "village-adventure",
     "forest-journey",
@@ -190,10 +200,27 @@ export default function FlappyHuman() {
     const savedLevels = localStorage.getItem("flappy-human-levels")
     const savedDifficulty = localStorage.getItem("flappy-human-difficulty")
 
+    // Handle character migration and selection
+    let characterToSelect = characters[0] // Default to TT
     if (savedCharacter) {
       const character = characters.find((c) => c.id === savedCharacter)
-      if (character) setSelectedCharacter(character)
+      if (character) {
+        // If saved character is Hitesh, check if they can still use it
+        if (character.id === "hitesh") {
+          const currentUnlocked = savedUnlocked ? JSON.parse(savedUnlocked) : ["tt"]
+          if (currentUnlocked.includes("hitesh")) {
+            characterToSelect = character
+          } else {
+            // Reset to TT if Hitesh is no longer unlocked
+            characterToSelect = characters[0]
+            localStorage.setItem("flappy-human-character", "tt")
+          }
+        } else {
+          characterToSelect = character
+        }
+      }
     }
+    setSelectedCharacter(characterToSelect)
 
     if (savedHighScore) {
       setHighScore(Number.parseInt(savedHighScore))
@@ -203,8 +230,19 @@ export default function FlappyHuman() {
       setTotalCoins(Math.max(50, Number.parseInt(savedCoins)))
     }
 
+    // Handle unlocked characters migration
     if (savedUnlocked) {
-      setUnlockedCharacters(JSON.parse(savedUnlocked))
+      const oldUnlocked = JSON.parse(savedUnlocked)
+      // Remove Hitesh from unlocked if it was there before (since it now costs coins)
+      const newUnlocked = oldUnlocked.filter((id: string) => id !== "hitesh")
+      // Always ensure TT is unlocked
+      if (!newUnlocked.includes("tt")) {
+        newUnlocked.push("tt")
+      }
+      setUnlockedCharacters(newUnlocked)
+      localStorage.setItem("flappy-human-unlocked", JSON.stringify(newUnlocked))
+    } else {
+      setUnlockedCharacters(["tt"])
     }
 
     if (savedModes) {

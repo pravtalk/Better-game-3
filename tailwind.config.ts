@@ -65,6 +65,16 @@ const config: Config = {
         "ui-text-primary": "#1a1a1a",
         "ui-text-secondary": "#4a4a4a",
         "ui-text-muted": "#6b7280",
+        // GLA colors
+        gold: {
+          50: "#fffbeb",
+          100: "#fef3c7",
+          200: "#fde68a",
+          300: "#fcd34d",
+          400: "#fbbf24",
+          500: "#f59e0b",
+          600: "#d97706",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -140,6 +150,8 @@ const config: Config = {
         "ui-button-hover": "0 6px 20px rgba(0, 0, 0, 0.15)",
         "glow-yellow": "0 0 20px rgba(255, 235, 59, 0.4)",
         "glow-soft": "0 0 15px rgba(139, 69, 19, 0.3)",
+        "glow-gold": "0 0 20px rgba(251, 191, 36, 0.4)",
+        "glow-blue": "0 0 20px rgba(59, 130, 246, 0.4)",
       },
     },
   },
