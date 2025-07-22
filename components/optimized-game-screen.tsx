@@ -11,7 +11,7 @@ import { PerformanceEngine, EasingEngine, SmoothPhysics } from "./performance-en
 import { RenderOptimizer, ViewportCuller } from "./render-optimizer"
 import { GamePhysicsEngine, type DifficultyMode } from "./game-physics"
 import { Home, RotateCcw, Play, Heart, Eye, EyeOff, Target, Zap, Activity } from "lucide-react"
-import type { Character, GameMode, Level, GameState } from "@/app/page"
+import type { Character, GameMode, Level, GameState, PowerupType } from "@/app/page"
 
 interface OptimizedGameScreenProps {
   character: Character
@@ -22,6 +22,7 @@ interface OptimizedGameScreenProps {
   score: number
   highScore: number
   totalCoins: number
+  selectedPowerups: PowerupType[]
   onGameOver: (score: number) => void
   onCoinsCollected: (coins: number) => void
   onRetry: () => void
@@ -70,6 +71,7 @@ export default function OptimizedGameScreen({
   score,
   highScore,
   totalCoins,
+  selectedPowerups,
   onGameOver,
   onCoinsCollected,
   onRetry,
@@ -104,6 +106,22 @@ export default function OptimizedGameScreen({
   const [finalFlightActive, setFinalFlightActive] = useState(false)
   const [finalFlightUsed, setFinalFlightUsed] = useState(false)
   const [hasRevived, setHasRevived] = useState(false)
+  
+  // Jetpack abilities state for Kapil Sir
+  const [jetpackAvailable, setJetpackAvailable] = useState(character.ability === "jetpack-god-flight")
+  const [jetpackActive, setJetpackActive] = useState(false)
+  const [jetpackTimeLeft, setJetpackTimeLeft] = useState(0)
+  
+  // Powerup states
+  const [powerupShieldActive, setPowerupShieldActive] = useState(selectedPowerups.includes("shield"))
+  const [powerupSlowTimeUsed, setPowerupSlowTimeUsed] = useState(false)
+  const [powerupDoubleCoins, setPowerupDoubleCoins] = useState(selectedPowerups.includes("double-coin"))
+  const [powerupMagnetActive, setPowerupMagnetActive] = useState(selectedPowerups.includes("magnet"))
+  
+  // Clone Revival state for Satyam
+  const [cloneRevivalUsed, setCloneRevivalUsed] = useState(false)
+  const [isClone, setIsClone] = useState(false)
+  const [cloneActivating, setCloneActivating] = useState(false)
 
   // Performance monitoring
   const [fps, setFPS] = useState(60)
@@ -209,6 +227,22 @@ export default function OptimizedGameScreen({
     setFinalFlightActive(false)
     setFinalFlightUsed(false)
     setHasRevived(false)
+    
+    // Reset Jetpack abilities
+    setJetpackAvailable(character.ability === "jetpack-god-flight")
+    setJetpackActive(false)
+    setJetpackTimeLeft(0)
+    
+    // Reset Powerup states
+    setPowerupShieldActive(selectedPowerups.includes("shield"))
+    setPowerupSlowTimeUsed(false)
+    setPowerupDoubleCoins(selectedPowerups.includes("double-coin"))
+    setPowerupMagnetActive(selectedPowerups.includes("magnet"))
+    
+    // Reset Clone Revival states
+    setCloneRevivalUsed(false)
+    setIsClone(false)
+    setCloneActivating(false)
 
     // Reset refs
     birdVelocityRef.current = 0
@@ -228,7 +262,7 @@ export default function OptimizedGameScreen({
 
     // Reset performance engine
     performanceEngine.current = new PerformanceEngine()
-  }, [character.ability, difficulty])
+  }, [character.ability, difficulty, selectedPowerups])
 
   useEffect(() => {
     resetGame()
@@ -270,39 +304,48 @@ export default function OptimizedGameScreen({
       if (shouldRender) {
         // Update physics with delta time (apply slow time effect)
         const effectiveDeltaTime = character.ability === "gla-shield-time-flight" && slowTimeActive ? deltaTime * 0.5 : deltaTime
-        const newVelocity = smoothPhysics.current.updateVelocity(birdVelocityRef.current, effectiveDeltaTime)
-        birdVelocityRef.current = newVelocity
-        setBirdVelocity(newVelocity)
+        
+        // Handle jetpack physics - maintain current Y position during jetpack
+        if (character.ability === "jetpack-god-flight" && jetpackActive) {
+          // Keep bird at current position during jetpack
+          setBirdVelocity(0)
+          birdVelocityRef.current = 0
+          // Don't update Y position during jetpack
+        } else {
+          const newVelocity = smoothPhysics.current.updateVelocity(birdVelocityRef.current, effectiveDeltaTime)
+          birdVelocityRef.current = newVelocity
+          setBirdVelocity(newVelocity)
 
-        const newY = smoothPhysics.current.updatePosition(birdY, newVelocity, effectiveDeltaTime)
-        const clampedY = Math.max(0, Math.min(536, newY))
-        setBirdY(clampedY)
+                     const newY = smoothPhysics.current.updatePosition(birdY, newVelocity, effectiveDeltaTime)
+          const clampedY = Math.max(0, Math.min(536, newY))
+          setBirdY(clampedY)
 
-        // Check for immediate game over on ground collision
-        if (clampedY <= 0 || clampedY >= 536) {
-          if (lives <= 1) {
-            playSound(150, 0.5)
-            onGameOver(currentScore)
-            onCoinsCollected(collectedCoins)
-            return
+          // Check for immediate game over on ground collision (not during jetpack)
+          if (clampedY <= 0 || clampedY >= 536) {
+            if (lives <= 1) {
+              playSound(150, 0.5)
+              onGameOver(currentScore)
+              onCoinsCollected(collectedCoins)
+              return
+            }
           }
+
+          // Smooth interpolation for visual position
+          const smoothY = EasingEngine.smoothDamp(smoothBirdY, clampedY, 0, 0.1, deltaTime)
+          setSmoothBirdY(smoothY.value)
+
+          // Smooth rotation
+          const targetRotation = smoothPhysics.current.getRotation(newVelocity)
+          const smoothRotation = EasingEngine.smoothDamp(
+            smoothBirdRotation,
+            targetRotation,
+            birdRotationVelocity.current,
+            0.15,
+            deltaTime,
+          )
+          setSmoothBirdRotation(smoothRotation.value)
+          birdRotationVelocity.current = smoothRotation.velocity
         }
-
-        // Smooth interpolation for visual position
-        const smoothY = EasingEngine.smoothDamp(smoothBirdY, clampedY, 0, 0.1, deltaTime)
-        setSmoothBirdY(smoothY.value)
-
-        // Smooth rotation
-        const targetRotation = smoothPhysics.current.getRotation(newVelocity)
-        const smoothRotation = EasingEngine.smoothDamp(
-          smoothBirdRotation,
-          targetRotation,
-          birdRotationVelocity.current,
-          0.15,
-          deltaTime,
-        )
-        setSmoothBirdRotation(smoothRotation.value)
-        birdRotationVelocity.current = smoothRotation.velocity
 
         // Update pipes with smooth movement
         setPipes((prevPipes) => {
@@ -427,6 +470,16 @@ export default function OptimizedGameScreen({
             }, 5000) // 5 seconds of invincibility
           }
         }
+        
+        // Handle Jetpack abilities for Kapil Sir
+        if (character.ability === "jetpack-god-flight") {
+          if (jetpackActive && jetpackTimeLeft > 0) {
+            setJetpackTimeLeft((prev) => Math.max(0, prev - deltaTime * 60))
+            if (jetpackTimeLeft <= 0) {
+              setJetpackActive(false)
+            }
+          }
+        }
 
         // Update performance metrics
         setFPS(currentFPS)
@@ -464,7 +517,7 @@ export default function OptimizedGameScreen({
 
   // Optimized collision detection with spatial partitioning
   useEffect(() => {
-    if (gameState !== "playing" || !gameStarted || isInvisible || finalFlightActive) return
+    if (gameState !== "playing" || !gameStarted || isInvisible || finalFlightActive || jetpackActive) return
 
     const birdRect = {
       x: 100 - hitboxSize / 2,
@@ -503,8 +556,13 @@ export default function OptimizedGameScreen({
           birdRect.y < bottomPipe.y + bottomPipe.height &&
           birdRect.y + birdRect.height > bottomPipe.y)
       ) {
-        // Handle GLA shield ability first
-        if (character.ability === "gla-shield-time-flight" && hasShield) {
+        // Handle powerup shield first
+        if (powerupShieldActive) {
+          setPowerupShieldActive(false) // Shield absorbs one hit
+          setIsInvisible(true)
+          setTimeout(() => setIsInvisible(false), 1000)
+          playSound(800, 0.3) // Shield sound
+        } else if (character.ability === "gla-shield-time-flight" && hasShield) {
           setHasShield(false) // Shield absorbs one hit
           setIsInvisible(true)
           setTimeout(() => setIsInvisible(false), 1000)
@@ -515,6 +573,14 @@ export default function OptimizedGameScreen({
           setTimeout(() => setIsInvisible(false), 1000)
           playSound(200, 0.3)
         } else {
+          // Check for clone revival ability (Satyam)
+          if (character.ability === "clone-revival" && !cloneRevivalUsed) {
+            const revived = activateCloneRevival()
+            if (revived) {
+              return // Continue playing as clone
+            }
+          }
+          
           // Check for final flight ability (only for Hitesh)
           if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
             setFinalFlightActive(true)
@@ -538,8 +604,17 @@ export default function OptimizedGameScreen({
 
     // Ground collision - updated logic
     if (smoothBirdY <= 0 || smoothBirdY >= 536) {
-      // Handle GLA shield ability first
-      if (character.ability === "gla-shield-time-flight" && hasShield) {
+      // Handle powerup shield first
+      if (powerupShieldActive) {
+        setPowerupShieldActive(false) // Shield absorbs one hit
+        setBirdY(300)
+        setSmoothBirdY(300)
+        setBirdVelocity(0)
+        birdVelocityRef.current = 0
+        setIsInvisible(true)
+        setTimeout(() => setIsInvisible(false), 1000)
+        playSound(800, 0.3) // Shield sound
+      } else if (character.ability === "gla-shield-time-flight" && hasShield) {
         setHasShield(false) // Shield absorbs one hit
         setBirdY(300)
         setSmoothBirdY(300)
@@ -557,21 +632,29 @@ export default function OptimizedGameScreen({
         setIsInvisible(true)
         setTimeout(() => setIsInvisible(false), 1000)
         playSound(200, 0.3)
-      } else {
-        // Check for final flight ability (only for Hitesh)
-        if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
-          setFinalFlightActive(true)
-          setFinalFlightUsed(true)
-          setHasRevived(true)
-          setLives(1) // Revive with 1 life
-          setBirdY(300)
-          setSmoothBirdY(300)
-          setBirdVelocity(0)
-          birdVelocityRef.current = 0
-          playSound(1600, 0.5) // Special revival sound
-        } else {
-          playSound(150, 0.5)
-          onGameOver(currentScore)
+              } else {
+          // Check for clone revival ability (Satyam)
+          if (character.ability === "clone-revival" && !cloneRevivalUsed) {
+            const revived = activateCloneRevival()
+            if (revived) {
+              return // Continue playing as clone
+            }
+          }
+          
+          // Check for final flight ability (only for Hitesh)
+          if (character.ability === "gla-shield-time-flight" && !finalFlightUsed && !hasRevived) {
+            setFinalFlightActive(true)
+            setFinalFlightUsed(true)
+            setHasRevived(true)
+            setLives(1) // Revive with 1 life
+            setBirdY(300)
+            setSmoothBirdY(300)
+            setBirdVelocity(0)
+            birdVelocityRef.current = 0
+            playSound(1600, 0.5) // Special revival sound
+          } else {
+            playSound(150, 0.5)
+            onGameOver(currentScore)
         onCoinsCollected(collectedCoins)
       }
       return // Important: exit early to prevent further collision checks
@@ -591,6 +674,10 @@ export default function OptimizedGameScreen({
     isInvisible,
     finalFlightActive,
     hasShield,
+    jetpackActive,
+    powerupShieldActive,
+    cloneRevivalUsed,
+    activateCloneRevival,
     character.ability,
     playSound,
   ])
@@ -620,8 +707,10 @@ export default function OptimizedGameScreen({
       prev.map((coin) => {
         if (!coin.collected) {
           const distance = Math.sqrt(Math.pow(coin.x - 100, 2) + Math.pow(coin.y - smoothBirdY, 2))
-          if (distance < 30) {
-            setCollectedCoins((coins) => coins + 1)
+          const collectDistance = powerupMagnetActive ? 50 : 30 // Magnet increases collection range
+          if (distance < collectDistance) {
+            const coinValue = powerupDoubleCoins ? 2 : 1 // Double coins powerup
+            setCollectedCoins((coins) => coins + coinValue)
             playSound(800, 0.15)
             return { ...coin, collected: true, targetScale: 0 }
           }
@@ -655,6 +744,53 @@ export default function OptimizedGameScreen({
       playSound(1000, 0.2)
     }
   }, [character.ability, invisibilityCooldown, isInvisible, playSound])
+
+  // Jetpack ability for Kapil Sir
+  const activateJetpack = useCallback(() => {
+    if (character.ability === "jetpack-god-flight" && jetpackAvailable && !jetpackActive) {
+      setJetpackActive(true)
+      setJetpackAvailable(false)
+      setJetpackTimeLeft(300) // 5 seconds at 60fps
+      // Fix bird position and velocity for straight flight
+      setBirdVelocity(0)
+      birdVelocityRef.current = 0
+      playSound(1800, 0.4) // Jetpack ignition sound
+    }
+  }, [character.ability, jetpackAvailable, jetpackActive, playSound])
+
+  // Powerup Slow Time ability
+  const activatePowerupSlowTime = useCallback(() => {
+    if (selectedPowerups.includes("slow-time") && !powerupSlowTimeUsed && !slowTimeActive) {
+      setSlowTimeActive(true)
+      setPowerupSlowTimeUsed(true)
+      setTimeout(() => setSlowTimeActive(false), 3000) // 3 seconds duration
+      playSound(1400, 0.3)
+    }
+  }, [selectedPowerups, powerupSlowTimeUsed, slowTimeActive, playSound])
+
+  // Clone Revival ability for Satyam
+  const activateCloneRevival = useCallback(() => {
+    if (character.ability === "clone-revival" && !cloneRevivalUsed) {
+      setCloneActivating(true)
+      setCloneRevivalUsed(true)
+      setIsClone(true)
+      
+      // Reset position to safe spot and clear velocity
+      setBirdY(300)
+      setSmoothBirdY(300)
+      setBirdVelocity(0)
+      birdVelocityRef.current = 0
+      
+      // Visual effect duration
+      setTimeout(() => setCloneActivating(false), 500)
+      
+      // Play clone activation sound
+      playSound(1600, 0.4)
+      
+      return true
+    }
+    return false
+  }, [character.ability, cloneRevivalUsed, playSound])
 
   if (gameState === "game-over") {
     return (
@@ -796,24 +932,43 @@ export default function OptimizedGameScreen({
         <div className="absolute inset-0">
           {/* Optimized Bird with smooth interpolation */}
           <div
-            className={`absolute transition-none ${isInvisible ? "opacity-50" : ""} ${finalFlightActive ? "animate-pulse" : ""}`}
+            className={`absolute transition-none ${isInvisible ? "opacity-50" : ""} ${finalFlightActive || jetpackActive ? "animate-pulse" : ""}`}
             style={{
               left: "100px",
               top: `${smoothBirdY}px`,
-              transform: `translate(-50%, -50%) rotate(${smoothBirdRotation}deg)`,
+              transform: `translate(-50%, -50%) rotate(${jetpackActive ? "0deg" : `${smoothBirdRotation}deg`})`,
               willChange: "transform",
-              filter: finalFlightActive ? "drop-shadow(0 0 20px #FFD700) drop-shadow(0 0 40px #FFA500)" : "none",
+              filter: finalFlightActive 
+                ? "drop-shadow(0 0 20px #FFD700) drop-shadow(0 0 40px #FFA500)" 
+                : jetpackActive 
+                ? "drop-shadow(0 0 15px #1E40AF) drop-shadow(0 0 30px #3B82F6) blur(0.5px)" 
+                : "none",
             }}
           >
             <AnimatedCharacter 
               character={character} 
               size="md" 
-              animation="wiggle" 
-              showSparkles={isInvisible || finalFlightActive} 
+              animation={jetpackActive ? "float" : "wiggle"} 
+              showSparkles={isInvisible || finalFlightActive || jetpackActive} 
               showLightningTrail={finalFlightActive}
+              showJetpackEffects={jetpackActive}
             />
             {finalFlightActive && (
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 opacity-30 animate-ping" />
+            )}
+            {jetpackActive && (
+              <>
+                {/* Jetpack exhaust flames */}
+                <div className="absolute -right-8 top-1/2 transform -translate-y-1/2">
+                  <div className="w-12 h-6 bg-gradient-to-r from-blue-500 via-orange-400 to-red-500 rounded-full opacity-80 animate-pulse" 
+                       style={{ filter: "blur(2px)" }} />
+                  <div className="absolute inset-0 w-8 h-4 bg-gradient-to-r from-white to-yellow-300 rounded-full animate-ping" />
+                </div>
+                {/* Blue jetpack trail */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 opacity-40 animate-ping" />
+                {/* Speed blur effect */}
+                <div className="absolute -left-4 top-1/2 transform -translate-y-1/2 w-16 h-1 bg-gradient-to-r from-blue-300 to-transparent opacity-60 animate-pulse" />
+              </>
             )}
           </div>
 
@@ -1032,6 +1187,66 @@ export default function OptimizedGameScreen({
                     <span className="font-sans text-xs font-bold text-gray-800">
                       {finalFlightActive ? "INVINCIBLE!" : finalFlightUsed ? "Flight Used" : "Flight Ready"}
                     </span>
+                  </div>
+                </UICard>
+              </div>
+            )}
+
+            {character.ability === "jetpack-god-flight" && (
+              <ModernButton
+                variant={jetpackAvailable ? "primary" : "light"}
+                size="lg"
+                onClick={activateJetpack}
+                disabled={!jetpackAvailable || jetpackActive}
+                className={`w-full mt-4 ${jetpackActive ? "animate-pulse bg-blue-600" : ""}`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">🚀</span>
+                  <span className="font-bold">
+                    {jetpackActive ? "JETPACK ON!" : jetpackAvailable ? "Activate Jetpack" : "Jetpack Used"}
+                  </span>
+                  {jetpackActive && (
+                    <span className="text-sm">({Math.ceil(jetpackTimeLeft / 60)}s)</span>
+                  )}
+                </div>
+              </ModernButton>
+            )}
+
+            {/* Powerup Indicators */}
+            {selectedPowerups.length > 0 && (
+              <div className="space-y-2">
+                <UICard variant="glass" padding="sm" className="border border-purple-400/60">
+                  <h4 className="font-sans text-xs font-bold text-purple-800 mb-2">ACTIVE POWERUPS</h4>
+                  <div className="space-y-1">
+                    {powerupShieldActive && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">🛡️</span>
+                        <span className="font-sans text-xs font-bold text-blue-800">Shield Ready</span>
+                      </div>
+                    )}
+                    {selectedPowerups.includes("slow-time") && (
+                      <ModernButton
+                        variant={powerupSlowTimeUsed ? "light" : "warning"}
+                        size="sm"
+                        onClick={activatePowerupSlowTime}
+                        disabled={powerupSlowTimeUsed || slowTimeActive}
+                        className="text-xs min-w-[80px] w-full"
+                      >
+                        {slowTimeActive ? "⏰ Active" : powerupSlowTimeUsed ? "⏰ Used" : "⏰ Slow Time"}
+                      </ModernButton>
+                    )}
+                    {powerupDoubleCoins && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">💰</span>
+                        <span className="font-sans text-xs font-bold text-yellow-800">2x Coins</span>
+                      </div>
+                    )}
+                    {powerupMagnetActive && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">🧲</span>
+                        <span className="font-sans text-xs font-bold text-purple-800">Magnet Active</span>
+                      </div>
+                    )}
                   </div>
                 </UICard>
               </div>

@@ -9,6 +9,7 @@ interface AnimatedCharacterProps {
   animation?: "float" | "bounce" | "wiggle" | "pulse"
   showSparkles?: boolean
   showLightningTrail?: boolean
+  showJetpackEffects?: boolean
 }
 
 export function AnimatedCharacter({
@@ -17,8 +18,10 @@ export function AnimatedCharacter({
   animation = "float",
   showSparkles = false,
   showLightningTrail = false,
+  showJetpackEffects = false,
 }: AnimatedCharacterProps) {
   const isGLA = character.ability === "gla-shield-time-flight"
+  const isKapilSir = character.ability === "jetpack-god-flight"
   const sizes = {
     sm: "text-2xl",
     md: "text-4xl",
@@ -82,12 +85,39 @@ export function AnimatedCharacter({
         </div>
       )}
 
+      {/* Jetpack Effects for Kapil Sir */}
+      {(isKapilSir || showJetpackEffects) && (
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Jetpack on back */}
+          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 text-blue-600 animate-pulse">
+            🎒
+          </div>
+          {/* Particle trail */}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute text-blue-400 animate-bounce"
+              style={{
+                left: `${-10 + Math.random() * 20}%`,
+                top: `${30 + Math.random() * 40}%`,
+                animationDelay: `${Math.random() * 1}s`,
+                animationDuration: "0.8s",
+              }}
+            >
+              💨
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Glow Effect */}
       <div
-        className={`absolute inset-0 rounded-full opacity-30 ${isGLA ? "animate-pulse" : "animate-pulse"}`}
+        className={`absolute inset-0 rounded-full opacity-30 animate-pulse`}
         style={{
           background: isGLA 
             ? `radial-gradient(circle, #FFD70080 0%, #FFA50080 50%, transparent 70%)`
+            : isKapilSir && showJetpackEffects
+            ? `radial-gradient(circle, #1E40AF80 0%, #3B82F680 50%, transparent 70%)`
             : `radial-gradient(circle, ${character.color}40 0%, transparent 70%)`,
         }}
       />

@@ -7,6 +7,8 @@ import ModeSelect from "@/components/mode-select"
 import LevelSelect from "@/components/level-select"
 import DifficultySelect from "@/components/difficulty-select"
 import HowToPlay from "@/components/how-to-play"
+import PowerupsStore from "@/components/powerups-store"
+import PowerupSelect from "@/components/powerup-select"
 import { difficultyModes, type DifficultyMode } from "@/components/game-physics"
 import OptimizedGameScreen from "@/components/optimized-game-screen"
 
@@ -15,10 +17,11 @@ export type CharacterAbility =
   | "extra-lives"
   | "invisibility"
   | "slow-gravity"
-  | "small-hitbox"
+  | "clone-revival"
   | "fast-flap"
   | "bonus-points"
   | "gla-shield-time-flight"
+  | "jetpack-god-flight"
 
 export type Character = {
   id: string
@@ -97,9 +100,9 @@ export const characters: Character[] = [
     name: "Satyam",
     color: "#F7DC6F",
     avatar: "🧑‍🔬",
-    ability: "small-hitbox",
+    ability: "clone-revival",
     unlockCost: 10,
-    description: "Smaller hitbox - easier to pass through gaps",
+    description: "Clone Revival - spawns a clone when hit (once per game)",
   },
   {
     id: "samar",
@@ -118,6 +121,15 @@ export const characters: Character[] = [
     ability: "bonus-points",
     unlockCost: 10,
     description: "Bonus points every 5 pipes passed!",
+  },
+  {
+    id: "kapil-sir",
+    name: "Kapil Sir",
+    color: "#1E40AF",
+    avatar: "👨‍🏫",
+    ability: "jetpack-god-flight",
+    unlockCost: 100,
+    description: "Jetpack God-Mode - fly through everything for 5 seconds!",
   },
 ]
 
@@ -163,9 +175,57 @@ export type GameState =
   | "level-select"
   | "difficulty-select"
   | "how-to-play"
+  | "powerups-store"
+  | "powerup-select"
   | "playing"
   | "game-over"
   | "level-complete"
+
+export type PowerupType = "shield" | "slow-time" | "double-coin" | "magnet"
+
+export type Powerup = {
+  id: PowerupType
+  name: string
+  description: string
+  icon: string
+  price: number
+  effect: string
+}
+
+export const powerups: Powerup[] = [
+  {
+    id: "shield",
+    name: "Shield",
+    description: "Protects from 1 hit",
+    icon: "🛡️",
+    price: 20,
+    effect: "Absorbs one collision with pipes or ground",
+  },
+  {
+    id: "slow-time",
+    name: "Slow Time",
+    description: "Slows down game for 3 seconds",
+    icon: "⏰",
+    price: 25,
+    effect: "Reduces game speed by 70% for 3 seconds",
+  },
+  {
+    id: "double-coin",
+    name: "Double Coin",
+    description: "Collects 2x coins in one run",
+    icon: "💰",
+    price: 30,
+    effect: "Doubles all coin collection for the entire run",
+  },
+  {
+    id: "magnet",
+    name: "Magnet",
+    description: "Pulls coins toward the player",
+    icon: "🧲",
+    price: 15,
+    effect: "Automatically attracts nearby coins",
+  },
+]
 
 export default function FlappyHuman() {
   const [gameState, setGameState] = useState<GameState>("home")
@@ -189,6 +249,15 @@ export default function FlappyHuman() {
     "mountain-climb",
   ])
   const [completedLevels, setCompletedLevels] = useState<number[]>([])
+  
+  // Powerup state management
+  const [powerupInventory, setPowerupInventory] = useState<Record<PowerupType, number>>({
+    "shield": 0,
+    "slow-time": 0,
+    "double-coin": 0,
+    "magnet": 0,
+  })
+  const [selectedPowerups, setSelectedPowerups] = useState<PowerupType[]>([])
 
   useEffect(() => {
     // Load saved data from localStorage
@@ -199,6 +268,7 @@ export default function FlappyHuman() {
     const savedModes = localStorage.getItem("flappy-human-modes")
     const savedLevels = localStorage.getItem("flappy-human-levels")
     const savedDifficulty = localStorage.getItem("flappy-human-difficulty")
+    const savedPowerups = localStorage.getItem("flappy-human-powerups")
 
     // Handle character migration and selection
     let characterToSelect = characters[0] // Default to TT
@@ -259,6 +329,10 @@ export default function FlappyHuman() {
       const difficulty = difficultyModes.find((d) => d.id === savedDifficulty)
       if (difficulty) setSelectedDifficulty(difficulty)
     }
+
+    if (savedPowerups) {
+      setPowerupInventory(JSON.parse(savedPowerups))
+    }
   }, [])
 
   const handleCharacterSelect = (character: Character) => {
@@ -280,6 +354,11 @@ export default function FlappyHuman() {
 
   const handleLevelSelect = (level: Level) => {
     setSelectedLevel(level)
+    setGameState("powerup-select")
+  }
+
+  const handleStartGame = () => {
+    consumeSelectedPowerups()
     setGameState("playing")
   }
 
@@ -341,12 +420,59 @@ export default function FlappyHuman() {
     }
   }
 
+  const buyPowerup = (powerupId: PowerupType) => {
+    const powerup = powerups.find((p) => p.id === powerupId)
+    if (powerup && totalCoins >= powerup.price) {
+      const newTotal = totalCoins - powerup.price
+      setTotalCoins(newTotal)
+      localStorage.setItem("flappy-human-coins", newTotal.toString())
+
+      const newInventory = {
+        ...powerupInventory,
+        [powerupId]: powerupInventory[powerupId] + 1,
+      }
+      setPowerupInventory(newInventory)
+      localStorage.setItem("flappy-human-powerups", JSON.stringify(newInventory))
+      return true
+    }
+    return false
+  }
+
+  const usePowerup = (powerupId: PowerupType) => {
+    if (powerupInventory[powerupId] > 0) {
+      const newInventory = {
+        ...powerupInventory,
+        [powerupId]: powerupInventory[powerupId] - 1,
+      }
+      setPowerupInventory(newInventory)
+      localStorage.setItem("flappy-human-powerups", JSON.stringify(newInventory))
+    }
+  }
+
+  const handleSelectPowerup = (powerupId: PowerupType) => {
+    if (powerupInventory[powerupId] > 0 && !selectedPowerups.includes(powerupId)) {
+      setSelectedPowerups([...selectedPowerups, powerupId])
+    }
+  }
+
+  const handleDeselectPowerup = (powerupId: PowerupType) => {
+    setSelectedPowerups(selectedPowerups.filter(id => id !== powerupId))
+  }
+
+  const consumeSelectedPowerups = () => {
+    selectedPowerups.forEach(powerupId => {
+      usePowerup(powerupId)
+    })
+    setSelectedPowerups([])
+  }
+
   return (
     <div className="w-full h-screen overflow-hidden">
       {gameState === "home" && (
         <HomeScreen
           onStartGame={() => setGameState("mode-select")}
           onSelectCharacter={() => setGameState("character-select")}
+          onPowerupsStore={() => setGameState("powerups-store")}
           onHowToPlay={() => setGameState("how-to-play")}
           selectedCharacter={selectedCharacter}
           highScore={highScore}
@@ -393,6 +519,28 @@ export default function FlappyHuman() {
 
       {gameState === "how-to-play" && <HowToPlay onBack={() => setGameState("home")} />}
 
+      {gameState === "powerups-store" && (
+        <PowerupsStore
+          powerups={powerups}
+          powerupInventory={powerupInventory}
+          totalCoins={totalCoins}
+          onBuyPowerup={buyPowerup}
+          onBack={() => setGameState("home")}
+        />
+      )}
+
+      {gameState === "powerup-select" && (
+        <PowerupSelect
+          powerups={powerups}
+          powerupInventory={powerupInventory}
+          selectedPowerups={selectedPowerups}
+          onSelectPowerup={handleSelectPowerup}
+          onDeselectPowerup={handleDeselectPowerup}
+          onStartGame={handleStartGame}
+          onBack={() => setGameState("level-select")}
+        />
+      )}
+
       {(gameState === "playing" || gameState === "game-over" || gameState === "level-complete") && (
         <OptimizedGameScreen
           character={selectedCharacter}
@@ -403,6 +551,7 @@ export default function FlappyHuman() {
           score={score}
           highScore={highScore}
           totalCoins={totalCoins}
+          selectedPowerups={selectedPowerups}
           onGameOver={handleGameOver}
           onCoinsCollected={handleCoinsCollected}
           onRetry={resetGame}

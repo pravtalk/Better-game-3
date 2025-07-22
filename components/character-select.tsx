@@ -67,9 +67,14 @@ export default function CharacterSelect({
                 const isSelected = selectedCharacter.id === character.id
                 const canAfford = totalCoins >= character.unlockCost
 
-                // Special styling for GLA character
+                // Special styling for GLA character and Jetpack character
                 const isGLA = character.ability === "gla-shield-time-flight"
-                const glaBorderClass = isGLA ? "border-gold-400 shadow-glow-gold bg-gradient-to-br from-gold-50/20 to-gold-100/20" : "border-white/40"
+                const isJetpack = character.ability === "jetpack-god-flight"
+                const specialBorderClass = isGLA 
+                  ? "border-gold-400 shadow-glow-gold bg-gradient-to-br from-gold-50/20 to-gold-100/20" 
+                  : isJetpack 
+                  ? "border-blue-500 shadow-glow-blue bg-gradient-to-br from-blue-50/20 to-blue-100/20"
+                  : "border-white/40"
                 
                 return (
                   <UICard
@@ -77,14 +82,21 @@ export default function CharacterSelect({
                     variant={isSelected ? "gradient" : isUnlocked ? "elevated" : "default"}
                     padding="md"
                     className={`relative transition-all duration-300 hover:scale-105 cursor-pointer border-2 ${
-                      isSelected ? "border-yellow-400 shadow-glow-yellow" : isGLA ? glaBorderClass : "border-white/40"
-                    } ${!isUnlocked ? "opacity-75" : ""} min-h-[280px] sm:min-h-[320px] ${isGLA ? "animate-pulse" : ""}`}
+                      isSelected ? "border-yellow-400 shadow-glow-yellow" : isGLA || isJetpack ? specialBorderClass : "border-white/40"
+                    } ${!isUnlocked ? "opacity-75" : ""} min-h-[280px] sm:min-h-[320px] ${isGLA || isJetpack ? "animate-pulse" : ""}`}
                     onClick={() => isUnlocked && onSelectCharacter(character)}
                   >
                     {/* GLA Label */}
                     {isGLA && (
                       <div className="absolute -top-2 -left-2 sm:-top-3 sm:-left-3 bg-gradient-to-r from-gold-400 to-gold-600 rounded-full px-2 py-1 sm:px-3 sm:py-1 shadow-lg animate-pulse border border-gold-300">
                         <span className="text-xs sm:text-sm font-black text-white">GLA</span>
+                      </div>
+                    )}
+
+                    {/* Jetpack Label */}
+                    {isJetpack && (
+                      <div className="absolute -top-2 -left-2 sm:-top-3 sm:-left-3 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full px-2 py-1 sm:px-3 sm:py-1 shadow-lg animate-pulse border border-blue-400">
+                        <span className="text-xs sm:text-sm font-black text-white">🚀</span>
                       </div>
                     )}
 
